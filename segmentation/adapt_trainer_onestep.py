@@ -108,14 +108,18 @@ img_transform_list = [
     ToTensor(),
     Normalize([.485, .456, .406], [.229, .224, .225])
 ]
-if args.augment:
-    aug_list = [
-        RandomRotation(),
-        # RandomVerticalFlip(), # non-realistic
-        RandomHorizontalFlip(),
-        RandomSizedCrop()
-    ]
-    img_transform_list = aug_list + img_transform_list
+
+try:
+    if args.augment:
+        aug_list = [
+            RandomRotation(),
+            # RandomVerticalFlip(), # non-realistic
+            RandomHorizontalFlip(),
+            RandomSizedCrop()
+        ]
+        img_transform_list = aug_list + img_transform_list
+except AttributeError:
+    print("augment is not defined. Do nothing.")
 
 img_transform = Compose(img_transform_list)
 

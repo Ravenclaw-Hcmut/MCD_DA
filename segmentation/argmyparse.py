@@ -27,8 +27,8 @@ def get_common_training_parser(parser):
     parser.add_argument('--savename', type=str, default="normal", help="save name(Do NOT use '-')")
     parser.add_argument('--base_outdir', type=str, default='train_output',
                         help="base output dir")
-    parser.add_argument('--epochs', type=int, default=10,
-                        help='number of epochs to train (default: 10)')
+    parser.add_argument('--epochs', type=int, default=2,
+                        help='number of epochs to train (default: 2)')
     parser.add_argument("--max_iter", type=int, default=5000)  # Iter per epoch
 
     # ---------- Define Network ---------- #

@@ -39,8 +39,8 @@ def yes_no_input():
 def check_if_done(filename):
     if os.path.exists(filename):
         print ("%s already exists. Is it O.K. to overwrite it and start this program?" % filename)
-        if not yes_no_input():
-            raise Exception("Please restart training after you set args.savename differently!")
+        # if not yes_no_input():
+        #     raise Exception("Please restart training after you set args.savename differently!")
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):

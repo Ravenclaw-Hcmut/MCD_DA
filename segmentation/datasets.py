@@ -254,7 +254,9 @@ def get_dataset(dataset_name, split, img_transform, label_transform, test, input
                            test=test, input_ch=input_ch, label_type="label16")
 
     return dataset_obj(root=root, split=split, img_transform=img_transform, label_transform=label_transform,
-                       test=test, input_ch=input_ch)
+                       test=test)
+    # return dataset_obj(root=root, split=split, img_transform=img_transform, label_transform=label_transform,
+    #                    test=test, input_ch=input_ch)
 
 
 def check_src_tgt_ok(src_dataset_name, tgt_dataset_name):
