@@ -103,3 +103,7 @@ ENV/
 #
 *.xml
 *.iml
+
+# self defined
+*.ipynb
+train_output*

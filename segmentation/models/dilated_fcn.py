@@ -408,7 +408,7 @@ def train_seg(args):
     if args.pretrained:
         single_model.load_state_dict(torch.load(args.pretrained))
     model = torch.nn.DataParallel(single_model).cuda()
-    criterion = nn.NLLLoss2d(ignore_index=255)
+    criterion = nn.NLLLoss(ignore_index=255)
     criterion.cuda()
     # Data loading code
     data_dir = args.data_dir
