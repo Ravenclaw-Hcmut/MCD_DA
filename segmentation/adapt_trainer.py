@@ -181,7 +181,7 @@ for epoch in range(start_epoch, args.epochs):
         loss += criterion(outputs1, src_lbls)
         loss += criterion(outputs2, src_lbls)
         loss.backward()
-        c_loss = loss.data[0]
+        c_loss = loss.data
         c_loss_per_epoch += c_loss
 
         optimizer_g.step()
@@ -204,7 +204,7 @@ for epoch in range(start_epoch, args.epochs):
 
         d_loss = 0.0
         # update generator by discrepancy
-        for i in xrange(args.num_k):
+        for i in range(args.num_k):
             optimizer_g.zero_grad()
             loss = 0
             outputs = model_g(tgt_imgs)
@@ -214,7 +214,7 @@ for epoch in range(start_epoch, args.epochs):
             loss.backward()
             optimizer_g.step()
 
-        d_loss += loss.data[0] / args.num_k
+        d_loss += loss.data / args.num_k
         d_loss_per_epoch += d_loss
         if ind % 100 == 0:
             print("iter [%d] DLoss: %.6f CLoss: %.4f" % (ind, d_loss, c_loss))

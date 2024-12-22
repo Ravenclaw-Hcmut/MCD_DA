@@ -194,9 +194,9 @@ for epoch in range(start_epoch, args.epochs):
         optimizer_f.step()
         optimizer_g.step()
 
-        d_loss = -loss.data[0]
+        d_loss = -loss.data
         d_loss_per_epoch += d_loss
-        c_loss = c_loss.data[0]
+        c_loss = c_loss.data
         c_loss_per_epoch += c_loss
         if ind % 100 == 0:
             print("iter [%d] DLoss: %.6f CLoss: %.4f Lambd: %.4f" % (ind, d_loss, c_loss, lambd))
