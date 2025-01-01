@@ -1,7 +1,7 @@
 import argparse
-import os
+# import os
 
-from datasets import get_n_class
+from datasets_segment import get_n_class
 
 
 def fix_img_shape_args(args):
@@ -16,8 +16,12 @@ def fix_img_shape_args(args):
 
 def add_additional_params_to_args(args):
     dataset = args.src_dataset if "src_dataset" in args.__dict__.keys() else args.tgt_dataset
+    
+    print(dataset)
+    
     args.n_class = get_n_class(dataset)
-    args.machine = os.uname()[1]
+    print(args.n_class)
+    # args.machine = os.uname()[1]
 
     return args
 

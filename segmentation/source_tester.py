@@ -11,7 +11,7 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 from tqdm import tqdm
 
 from argmyparse import add_additional_params_to_args, fix_img_shape_args
-from datasets import get_dataset
+from datasets_segment import get_dataset
 from models.model_util import get_full_model, get_optimizer
 from transform import Scale, ReLabel, ToLabel
 from util import mkdir_if_not_exist, save_dic_to_json, check_if_done

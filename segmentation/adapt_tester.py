@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from argmyparse import add_additional_params_to_args
 from argmyparse import fix_img_shape_args
-from datasets import get_dataset
+from datasets_segment import get_dataset
 from models.model_util import get_models
 from transform import Scale
 from util import mkdir_if_not_exist, save_dic_to_json, check_if_done

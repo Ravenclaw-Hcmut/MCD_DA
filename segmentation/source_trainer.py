@@ -11,7 +11,7 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 from tqdm import tqdm
 
 from argmyparse import get_src_only_training_parser, add_additional_params_to_args, fix_img_shape_args
-from datasets import get_dataset
+from datasets_segment import get_dataset
 from loss import CrossEntropyLoss2d
 from models.model_util import get_optimizer, get_full_model  # check_training
 from transform import ReLabel, ToLabel, Scale, RandomSizedCrop, RandomHorizontalFlip, RandomRotation
