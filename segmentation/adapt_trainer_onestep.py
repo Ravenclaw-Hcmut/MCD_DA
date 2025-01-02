@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from torch.utils import data
 from torchvision.transforms import Compose, Normalize, ToTensor
 from argmyparse import add_additional_params_to_args, fix_img_shape_args, get_da_mcd_training_parser
-from datasets import ConcatDataset, get_dataset, check_src_tgt_ok
+from datasets_segment import ConcatDataset, get_dataset, check_src_tgt_ok
 from loss import CrossEntropyLoss2d, get_prob_distance_criterion
 from models.model_util import get_models, get_optimizer
 from transform import ReLabel, ToLabel, Scale, RandomSizedCrop, RandomHorizontalFlip, RandomRotation

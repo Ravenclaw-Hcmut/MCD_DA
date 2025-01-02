@@ -7,10 +7,10 @@ import tqdm
 from PIL import Image
 from tensorboard_logger import configure, log_value
 from torch.autograd import Variable
-from torch.utils import data
+# from torch.utils import data
 from torchvision.transforms import Compose, Normalize, ToTensor
 from argmyparse import add_additional_params_to_args, fix_img_shape_args, get_da_mcd_training_parser
-from datasets import ConcatDataset, get_dataset, check_src_tgt_ok
+from datasets_segment import ConcatDataset, get_dataset, check_src_tgt_ok
 from loss import CrossEntropyLoss2d, get_prob_distance_criterion
 from models.model_util import get_models, get_optimizer
 from transform import ReLabel, ToLabel, Scale, RandomSizedCrop, RandomHorizontalFlip, RandomRotation
@@ -18,14 +18,36 @@ from util import mkdir_if_not_exist, save_dic_to_json, check_if_done, save_check
     get_class_weight_from_file
 
 parser = get_da_mcd_training_parser()
+
+# print (parser)
+
 args = parser.parse_args()
+
+# print ("args")
+# print (args)
+
 args = add_additional_params_to_args(args)
+
+# print ("add_additional_params_to_args")
+# print (args)
+
 args = fix_img_shape_args(args)
+
+# print ("fix_img_shape_args")
+# print (args)
+
+
 check_src_tgt_ok(args.src_dataset, args.tgt_dataset)
 
 weight = torch.ones(args.n_class)
 if not args.add_bg_loss:
     weight[args.n_class - 1] = 0  # Ignore background loss
+
+# print("weight")
+# print(weight)
+
+# exit()
+
 
 args.start_epoch = 0
 resume_flg = True if args.resume else False

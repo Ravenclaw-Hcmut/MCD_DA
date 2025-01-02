@@ -271,5 +271,7 @@ def get_n_class(src_dataset_name):
         return 16
     elif src_dataset_name in ["gta", "city", "test"]:
         return 20
+    elif src_dataset_name in ["wbc"]:
+        return 3
     else:
         raise NotImplementedError("You have to define the class of %s dataset" % src_dataset_name)
