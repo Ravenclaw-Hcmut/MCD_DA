@@ -11,6 +11,7 @@ from torch.utils import data
 
 from transform import HorizontalFlip, VerticalFlip
 
+DATASET_LIST = ["gta", "city", "city16", "synthia", "wbc_1", "wbc_2"]
 
 class ConcatDataset(torch.utils.data.Dataset):
     def __init__(self, *datasets):
@@ -142,6 +143,61 @@ class GTADataSet(data.Dataset):
 
         return img, label
 
+class WBCDataSet(data.Dataset):
+    def __init__(self, root, split="train", img_transform=None, label_transform=None, test=True, input_ch=3, id_fold = 0):
+        assert input_ch == 3
+        self.root = root
+        self.split = split
+        # self.mean_bgr = np.array([104.00698793, 116.66876762, 122.67891434])
+        self.files = collections.defaultdict(list)
+        self.img_transform = img_transform
+        self.label_transform = label_transform
+        # self.h_flip = HorizontalFlip()
+        # self.v_flip = VerticalFlip()
+        self.test = test
+        data_dir = osp.join(root, f'{split}_{id_fold}')
+        # for split in ["train", "trainval", "val"]:
+        imgsets_dir = os.listdir(data_dir)
+        for name in imgsets_dir:
+            img_file = os.path.join(data_dir, name)
+            if '.png' in img_file:
+                self.files[split].append({
+                    "img": img_file.replace('.png', '.bmp'),
+                    "label": img_file,
+                })
+            # else:
+            #     self.files[split].append({
+            #         "img": img_file,
+            #     })
+
+    def __len__(self):
+        return len(self.files[self.split])
+
+    def __getitem__(self, index):
+        datafiles = self.files[self.split][index]
+
+        img_file = datafiles["img"]
+        datafiles = self.files[self.split][index]
+
+        img_file = datafiles["img"]
+        img = Image.open(img_file).convert('RGB')
+        label_file = datafiles["label"]
+        label = np.array(Image.open(label_file).convert("L"))
+        label[label == 128] = 1
+        label[label == 255] = 2
+        label = Image.fromarray(label)
+
+        if self.img_transform:
+            img = self.img_transform(img)
+
+        if self.label_transform:
+            label = self.label_transform(label)
+
+        if self.test:
+            return img, label, img_file
+
+        return img, label
+
 
 class SynthiaDataSet(data.Dataset):
     def __init__(self, root, split="all", img_transform=None, label_transform=None,
@@ -230,14 +286,17 @@ class TestDataSet(data.Dataset):
             return img, img
 
 
-def get_dataset(dataset_name, split, img_transform, label_transform, test, input_ch=3):
-    assert dataset_name in ["gta", "city", "test", "city16", "synthia"]
+def get_dataset(dataset_name, split, img_transform, label_transform, test, input_ch=3, id_crossval=0):
+    assert dataset_name in ["test"] + DATASET_LIST
+    assert split in ["train", "val", "test"]
 
     name2obj = {
         "gta": GTADataSet,
         "city": CityDataSet,
         "city16": CityDataSet,
         "synthia": SynthiaDataSet,
+        "wbc_1": WBCDataSet,
+        "wbc_2": WBCDataSet,
     }
     ##Note fill in the blank below !! "gta....fill the directory over images folder.
     name2root = {
@@ -245,6 +304,8 @@ def get_dataset(dataset_name, split, img_transform, label_transform, test, input
         "city": "",  ## ex, ./www.cityscapes-dataset.com/file-handling
         "city16": "",  ## Same as city
         "synthia": "",  ## synthia/RAND_CITYSCAPES",
+        "wbc_1": "dataset/wbc_1",
+        "wbc_2": "dataset/wbc_2",
     }
     dataset_obj = name2obj[dataset_name]
     root = name2root[dataset_name]
@@ -252,7 +313,11 @@ def get_dataset(dataset_name, split, img_transform, label_transform, test, input
     if dataset_name == "city16":
         return dataset_obj(root=root, split=split, img_transform=img_transform, label_transform=label_transform,
                            test=test, input_ch=input_ch, label_type="label16")
-
+    elif dataset_name in ["wbc_1", "wbc_2"]:
+        print(f"id_crossval of {dataset_name}: {id_crossval}")
+        return dataset_obj(root=root, split=split, img_transform=img_transform, label_transform=label_transform,
+                           test=test, input_ch=input_ch, id_fold=id_crossval)
+    
     return dataset_obj(root=root, split=split, img_transform=img_transform, label_transform=label_transform,
                        test=test)
     # return dataset_obj(root=root, split=split, img_transform=img_transform, label_transform=label_transform,
@@ -260,18 +325,20 @@ def get_dataset(dataset_name, split, img_transform, label_transform, test, input
 
 
 def check_src_tgt_ok(src_dataset_name, tgt_dataset_name):
-    if src_dataset_name == "synthia" and not tgt_dataset_name == "city16":
-        raise AssertionError("you must use synthia-city16 pair")
-    elif src_dataset_name == "city16" and not tgt_dataset_name == "synthia":
-        raise AssertionError("you must use synthia-city16 pair")
+    # raise no longer be used
+    raise NotImplementedError("This function is no longer used")
+    # if src_dataset_name == "synthia" and not tgt_dataset_name == "city16":
+    #     raise AssertionError("you must use synthia-city16 pair")
+    # elif src_dataset_name == "city16" and not tgt_dataset_name == "synthia":
+    #     raise AssertionError("you must use synthia-city16 pair")
 
 
 def get_n_class(src_dataset_name):
     if src_dataset_name in ["synthia", "city16"]:
-        return 16
+        return 16, 15
     elif src_dataset_name in ["gta", "city", "test"]:
-        return 20
-    elif src_dataset_name in ["wbc"]:
-        return 3
+        return 20, 19
+    elif src_dataset_name in ["wbc_1", "wbc_2"]:
+        return 3, 0
     else:
         raise NotImplementedError("You have to define the class of %s dataset" % src_dataset_name)

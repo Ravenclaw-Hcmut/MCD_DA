@@ -5,13 +5,12 @@ import torch.nn.functional as F
 
 # Recommend
 class CrossEntropyLoss2d(nn.Module):
-    def __init__(self, weight=None, size_average=True):
+    def __init__(self, weight=None, reduction='mean'):
         super(CrossEntropyLoss2d, self).__init__()
-        self.nll_loss = nn.NLLLoss(weight, size_average)
+        self.nll_loss = nn.NLLLoss(weight, reduction=reduction)
 
     def forward(self, inputs, targets):
-        return self.nll_loss(F.log_softmax(inputs), targets)
-
+        return self.nll_loss(F.log_softmax(inputs, dim=1), targets)
 
 class BalanceLoss2d(nn.Module):
     def __init__(self, weight=None, size_average=True):
@@ -46,14 +45,14 @@ class Diff2d(nn.Module):
         self.weight = weight
 
     def forward(self, inputs1, inputs2):
-        return torch.mean(torch.abs(F.softmax(inputs1) - F.softmax(inputs2)))
+        return torch.mean(torch.abs(F.softmax(inputs1, dim=1) - F.softmax(inputs2, dim=1)))
 
 class Symkl2d(nn.Module):
-    def __init__(self, weight=None, n_target_ch=21, size_average=True):
+    def __init__(self, weight=None, n_target_ch=20, size_average=True):
         super(Symkl2d, self).__init__()
         self.weight = weight
         self.size_average = size_average
-        self.n_target_ch = 20
+        self.n_target_ch = n_target_ch
     def forward(self, inputs1, inputs2):
         self.prob1 = F.softmax(inputs1)
         self.prob2 = F.softmax(inputs2)

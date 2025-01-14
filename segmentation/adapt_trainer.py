@@ -1,59 +1,44 @@
 from __future__ import division
 
 import os
+import logging
 
 import torch
 import tqdm
 from PIL import Image
 from tensorboard_logger import configure, log_value
-from torch.autograd import Variable
+# from torch.autograd import Variable
 # from torch.utils import data
 from torchvision.transforms import Compose, Normalize, ToTensor
-from argmyparse import add_additional_params_to_args, fix_img_shape_args, get_da_mcd_training_parser
+from argmyparse import add_additional_params_to_args, fix_img_shape_args, get_da_mcd_training_parser, DatasetSplit
 from datasets_segment import ConcatDataset, get_dataset, check_src_tgt_ok
 from loss import CrossEntropyLoss2d, get_prob_distance_criterion
 from models.model_util import get_models, get_optimizer
 from transform import ReLabel, ToLabel, Scale, RandomSizedCrop, RandomHorizontalFlip, RandomRotation
 from util import mkdir_if_not_exist, save_dic_to_json, check_if_done, save_checkpoint, adjust_learning_rate, \
-    get_class_weight_from_file
+    get_class_weight_from_file, setup_logging, Log_CSV
+from eval_segmentation import infer_image, get_metric, get_general_metric
 
 parser = get_da_mcd_training_parser()
-
-# print (parser)
-
 args = parser.parse_args()
-
-# print ("args")
-# print (args)
-
 args = add_additional_params_to_args(args)
 
-# print ("add_additional_params_to_args")
-# print (args)
+setup_logging(args)
 
 args = fix_img_shape_args(args)
 
-# print ("fix_img_shape_args")
-# print (args)
+# check_src_tgt_ok(args.src_dataset, args.tgt_dataset)
 
-
-check_src_tgt_ok(args.src_dataset, args.tgt_dataset)
-
-weight = torch.ones(args.n_class)
+weight_loss = torch.ones(args.n_class)
 if not args.add_bg_loss:
-    weight[args.n_class - 1] = 0  # Ignore background loss
-
-# print("weight")
-# print(weight)
-
-# exit()
-
+    weight_loss[args.label_background] = 0  # Ignore background loss
 
 args.start_epoch = 0
 resume_flg = True if args.resume else False
 start_epoch = 0
 if args.resume:
     print("=> loading checkpoint '{}'".format(args.resume))
+    logging.info("=> loading checkpoint '{}'".format(args.resume))
     if not os.path.exists(args.resume):
         raise OSError("%s does not exist!" % args.resume)
 
@@ -62,6 +47,7 @@ if args.resume:
     old_savename = args.savename
     args.savename = infn.split("-")[0]
     print ("savename is %s (original savename %s was overwritten)" % (args.savename, old_savename))
+    logging.info("savename is %s (original savename %s was overwritten)" % (args.savename, old_savename))
 
     checkpoint = torch.load(args.resume)
     start_epoch = checkpoint["epoch"]
@@ -83,6 +69,7 @@ if args.resume:
     optimizer_g.load_state_dict(checkpoint['optimizer_g'])
     optimizer_f.load_state_dict(checkpoint['optimizer_f'])
     print("=> loaded checkpoint '{}'".format(args.resume))
+    logging.info("=> loaded checkpoint '{}'".format(args.resume))
 
 else:
     model_g, model_f1, model_f2 = get_models(net_name=args.net, res=args.res, input_ch=args.input_ch,
@@ -94,10 +81,15 @@ else:
     optimizer_f = get_optimizer(list(model_f1.parameters()) + list(model_f2.parameters()), opt=args.opt,
                                 lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 if args.uses_one_classifier:
-    print ("f1 and f2 are same!")
+    print ("uses_one_classifier, f1 and f2 are same!")
+    logging.info("uses_one_classifier, f1 and f2 are same!")
     model_f2 = model_f1
 
-mode = "%s-%s2%s-%s_%sch" % (args.src_dataset, args.src_split, args.tgt_dataset, args.tgt_split, args.input_ch)
+# mode = "%s-%s2%s-%s_%sch" % (args.src_dataset, args.src_split, args.tgt_dataset, args.tgt_split, args.input_ch)
+mode = f"train-{args.src_dataset}_to_{args.tgt_dataset}-fold{args.id_crossval}-{args.input_ch}ch"
+log_csv = Log_CSV(mode=mode)
+logging.info("mode: %s" % mode)
+
 if args.net in ["fcn", "psp"]:
     model_name = "%s-%s-%s-res%s" % (args.method, args.savename, args.net, args.res)
 else:
@@ -140,20 +132,28 @@ try:
         img_transform_list = aug_list + img_transform_list
 except AttributeError:
     print("augment is not defined. Do nothing.")
+    logging.info("augment is not defined. Do nothing.")
 
 img_transform = Compose(img_transform_list)
 
 label_transform = Compose([
     Scale(train_img_shape, Image.NEAREST),
     ToLabel(),
-    ReLabel(255, args.n_class - 1),  # Last Class is "Void" or "Background" class
+    ReLabel(0, args.label_background),  # Last Class is "Void" or "Background" class
 ])
 
-src_dataset = get_dataset(dataset_name=args.src_dataset, split=args.src_split, img_transform=img_transform,
-                          label_transform=label_transform, test=False, input_ch=args.input_ch)
+src_dataset = get_dataset(dataset_name=args.src_dataset, split=DatasetSplit.TRAIN.value, img_transform=img_transform,
+                          label_transform=label_transform, test=False, input_ch=args.input_ch, id_crossval=args.id_crossval)
 
-tgt_dataset = get_dataset(dataset_name=args.tgt_dataset, split=args.tgt_split, img_transform=img_transform,
-                          label_transform=label_transform, test=False, input_ch=args.input_ch)
+tgt_dataset = get_dataset(dataset_name=args.tgt_dataset, split=DatasetSplit.TRAIN.value, img_transform=img_transform,
+                          label_transform=label_transform, test=False, input_ch=args.input_ch, id_crossval=args.id_crossval)
+
+tgt_val_dataset = get_dataset(dataset_name=args.tgt_dataset, split=DatasetSplit.VAL.value, img_transform=img_transform,
+                               label_transform=label_transform, test=True, input_ch=args.input_ch, id_crossval=args.id_crossval)
+
+logging.info(src_dataset.files)
+logging.info(tgt_dataset.files)
+logging.info(tgt_val_dataset.files)
 
 train_loader = torch.utils.data.DataLoader(
     ConcatDataset(
@@ -163,30 +163,55 @@ train_loader = torch.utils.data.DataLoader(
     batch_size=args.batch_size, shuffle=True,
     pin_memory=True)
 
-weight = get_class_weight_from_file(n_class=args.n_class, weight_filename=args.loss_weights_file,
+val_loader = torch.utils.data.DataLoader(
+    tgt_val_dataset,
+    batch_size=args.batch_size, shuffle=False,
+    pin_memory=True)
+
+def get_unique_labels(dataset):
+    """Extract unique labels from dataset"""
+    all_labels = []
+    logging.info(f"len(dataset): {len(dataset)}")
+    for source, target in dataset:
+        unique_values = torch.unique(source[1])
+        all_labels.append(unique_values.tolist())
+    return all_labels
+    # return sorted(list(set(all_labels)))
+
+train_labels = get_unique_labels(train_loader.dataset)
+logging.info(f"Unique labels in dataset: {train_labels}")
+
+weight_loss = get_class_weight_from_file(n_class=args.n_class, weight_filename=args.loss_weights_file,
                                     add_bg_loss=args.add_bg_loss)
 
 if torch.cuda.is_available():
     model_g.cuda()
     model_f1.cuda()
     model_f2.cuda()
-    weight = weight.cuda()
+    weight_loss = weight_loss.cuda()
 
-criterion = CrossEntropyLoss2d(weight)
+criterion = CrossEntropyLoss2d(weight_loss)
 criterion_d = get_prob_distance_criterion(args.d_loss)
+
+patience = args.patience
+best_metric = 0
+best_metric_epoch = 0
+alpha_iou = args.alpha_iou
 
 model_g.train()
 model_f1.train()
 model_f2.train()
 
+print('Epoch\tLoss_C\tLoss_D\tVal_IoU\tVal_Dice\tVal_IoU_Dice\tBest_Val_IoU_Dice\tBest_Epoch\tLR')
+
 for epoch in range(start_epoch, args.epochs):
     d_loss_per_epoch = 0
     c_loss_per_epoch = 0
 
-    for ind, (source, target) in tqdm.tqdm(enumerate(train_loader)):
-        src_imgs, src_lbls = Variable(source[0]), Variable(source[1])
-        tgt_imgs = Variable(target[0])
-
+    for ind, (source, target) in tqdm.tqdm(enumerate(train_loader)):        
+        src_imgs, src_lbls = source[0], source[1]
+        tgt_imgs = target[0]
+                
         if torch.cuda.is_available():
             src_imgs, src_lbls, tgt_imgs = src_imgs.cuda(), src_lbls.cuda(), tgt_imgs.cuda()
 
@@ -199,7 +224,7 @@ for epoch in range(start_epoch, args.epochs):
 
         outputs1 = model_f1(outputs)
         outputs2 = model_f2(outputs)
-
+                
         loss += criterion(outputs1, src_lbls)
         loss += criterion(outputs2, src_lbls)
         loss.backward()
@@ -223,7 +248,7 @@ for epoch in range(start_epoch, args.epochs):
         loss -= criterion_d(outputs1, outputs2)
         loss.backward()
         optimizer_f.step()
-
+        
         d_loss = 0.0
         # update generator by discrepancy
         for i in range(args.num_k):
@@ -240,11 +265,26 @@ for epoch in range(start_epoch, args.epochs):
         d_loss_per_epoch += d_loss
         if ind % 100 == 0:
             print("iter [%d] DLoss: %.6f CLoss: %.4f" % (ind, d_loss, c_loss))
+        # if ind > args.max_iter:
+        #     break
 
-        if ind > args.max_iter:
+    with torch.no_grad():
+        preds, lbls = infer_image(model_g, model_f1, model_f2, val_loader)
+        mean_iou, mean_dice = get_metric(preds, lbls, args.n_class)
+        metric_general = get_general_metric(mean_iou, mean_dice, alpha_iou)
+        
+        if metric_general >= best_metric:
+            best_metric, best_metric_epoch = metric_general, epoch
+        
+        if epoch - best_metric_epoch > patience:
+            print(f"Early Stopping at Epoch {epoch}, Best Metric: {best_metric}, Best Metric Epoch: {best_metric_epoch}")
+            logging.info(f"Early Stopping at Epoch {epoch}, Best Metric: {best_metric}, Best Metric Epoch: {best_metric_epoch}")
             break
-
-    print("Epoch [%d] DLoss: %.4f CLoss: %.4f" % (epoch, d_loss_per_epoch, c_loss_per_epoch))
+        
+    log_csv.update(epoch, c_loss_per_epoch, d_loss_per_epoch, mean_iou, mean_dice, metric_general, best_metric, best_metric_epoch)
+    print(f'{epoch}\t{c_loss_per_epoch}\t{d_loss_per_epoch}\t{mean_iou}\t{mean_dice}\t\t{metric_general}\t\t{best_metric}\t\t\t{best_metric_epoch}\t{args.lr}')
+    logging.info(f"Epoch {epoch} Loss_C: {c_loss_per_epoch} Loss_D: {d_loss_per_epoch} Val_IoU: {mean_iou} Val_Dice: {mean_dice} Val_IoU_Dice: {metric_general} Best_Val_IoU_Dice: {best_metric} Best_Epoch: {best_metric_epoch} Lr: {args.lr}")
+    # print("Epoch [%d] DLoss: %.4f CLoss: %.4f" % (epoch, d_loss_per_epoch, c_loss_per_epoch))
 
     log_value('c_loss', c_loss_per_epoch, epoch)
     log_value('d_loss', d_loss_per_epoch, epoch)

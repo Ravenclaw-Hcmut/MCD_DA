@@ -4,7 +4,11 @@ import shutil
 
 import torch
 import sys
+import logging
+from datetime import datetime
+import pandas as pd
 
+LOG_DIR = 'logs'
 
 def set_debugger_org():
     if not sys.excepthook == sys.__excepthook__:
@@ -105,3 +109,56 @@ def get_class_weight_from_file(n_class, weight_filename=None, add_bg_loss=False)
     if not add_bg_loss:
         weight[n_class - 1] = 0  # Ignore background loss
     return weight
+
+
+def setup_logging(args):
+    """Configure logging to both file and console."""
+    # Create logs directory if it doesn't exist
+    log_dir = LOG_DIR
+    mkdir_if_not_exist(log_dir)
+    
+    # Generate log filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_filename = os.path.join(log_dir, f'training_{timestamp}.log')
+    
+    # Configure logging format
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    
+    # Setup file handler
+    logging.basicConfig(
+        level=logging.INFO,
+        format=log_format,
+        handlers=[
+            logging.FileHandler(log_filename),
+            logging.StreamHandler()
+        ]
+    )
+    
+    logging.info('Started training with configuration:')
+    logging.info(str(args))
+    
+    
+class Log_CSV:
+    def __init__(self, mode = 'train_unknow', filename=None):
+        self.filename = filename if filename else f'log_{mode}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        self.filename = os.path.join(LOG_DIR, self.filename)
+        self.df = pd.DataFrame()
+        self.columns = ['epoch', 'GPU_mem', 'c_loss', 'd_loss', 'val_IoU', 'val_Dice', 'val_Iou_Dice', 'best_val_Iou_Dice', 'best_epoch']
+        self.df = pd.DataFrame(columns=self.columns)
+
+    def append(self, epoch, c_loss, d_loss, val_IoU, val_Dice, val_Iou_Dice, best_val_Iou_Dice, best_epoch):
+        mem_GPU = 0
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            mem_GPU = torch.cuda.memory_allocated(device) / 1024 ** 2
+        new_row = {'epoch': epoch, 'GPU_mem': mem_GPU, 'c_loss': c_loss, 'd_loss': d_loss, 'val_IoU': val_IoU, 'val_Dice': val_Dice, 'val_Iou_Dice': val_Iou_Dice, 'best_val_Iou_Dice': best_val_Iou_Dice, 'best_epoch': best_epoch}
+        new_row_df = pd.DataFrame([new_row])  # Convert the new row to a DataFrame
+        self.df = pd.concat([self.df, new_row_df], ignore_index=True)  # Add the new row to the DataFrame and reset the index
+        
+    def save(self):
+        self.df.to_csv(self.filename, index=False)
+
+    def update(self, epoch, c_loss, d_loss, val_IoU, val_Dice, val_Iou_Dice, best_val_Iou_Dice, best_epoch):
+        self.append(epoch, c_loss, d_loss, val_IoU, val_Dice, val_Iou_Dice, best_val_Iou_Dice, best_epoch)
+        self.save()
+    

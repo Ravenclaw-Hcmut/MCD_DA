@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 # import glob
+from datasets_segment import DATASET_LIST
 
 
 def fast_hist(a, b, n):
@@ -257,7 +258,7 @@ def eval_city(gt_dir, pred_dir, devkit_dir='', dset='cityscapes', add_bg_loss=Fa
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('dset', default='city', help='For the challenge use the validation set of cityscapes.',
-                        choices=['city', "city16", 'gta'])
+                        choices=DATASET_LIST)
     parser.add_argument('pred_dir', type=str, help='directory which stores CityScapes val pred images')
     parser.add_argument('--time', type=str, choices=["day", "night", "all"], default="all",
                         help="only available for ir dataset")
@@ -279,4 +280,4 @@ if __name__ == "__main__":
         eval_city(gt_dir, args.pred_dir, args.devkit_dir, "gta", add_bg_loss=args.add_bg_loss)
 
     else:
-        NotImplementedError("Sorry... Only Cityscapes dataset is supported.")
+        raise NotImplementedError("Sorry... Only Cityscapes dataset is supported.")

@@ -58,13 +58,13 @@ def fill_up_weights(up):
     for c in range(1, w.size(0)):
         w[c, 0, :, :] = w[0, 0, :, :]
 
-
+# be used for segmentation (drn_d_105)
 class DRNSeg(nn.Module):
     def __init__(self, model_name, n_class, input_ch=3, pretrained_model=None,
                  pretrained=True, use_torch_up=False):
         super(DRNSeg, self).__init__()
         # print(drn.__dict__.get(model_name))
-
+        # TODO
         model = drn_d_105(
             pretrained=pretrained, num_classes=1000, input_ch=input_ch)
         pmodel = nn.DataParallel(model)

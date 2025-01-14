@@ -1,8 +1,17 @@
 import argparse
 # import os
 
-from datasets_segment import get_n_class
+from datasets_segment import get_n_class, DATASET_LIST
+from enum import Enum
 
+SHAPE_WBC_1 = [120, 120]
+SHAPE_WBC_2 = [300, 300]
+
+class DatasetSplit(Enum):
+    TRAIN = 'train'
+    VAL = 'val'
+    TEST = 'test'
+    
 
 def fix_img_shape_args(args):
     if "src_dataset" in args.__dict__.keys() and args.src_dataset == "2d3d":
@@ -12,6 +21,14 @@ def fix_img_shape_args(args):
     if "tgt_dataset" in args.__dict__.keys() and args.tgt_dataset == "test":
         args.test_img_shape = [1280, 720]
         print ("args.test_img_shape was changed to %s" % args.test_img_shape)
+    
+    if "src_dataset" in args.__dict__.keys() and "tgt_dataset" in args.__dict__.keys() and args.src_dataset == "wbc_1" and args.tgt_dataset == "wbc_2":
+        args.train_img_shape = SHAPE_WBC_1
+        print ("args.train_img_shape was changed to %s" % args.train_img_shape)
+    
+    if "train_img_shape" in args.__dict__.keys():
+        print (f"args.train_img_shape is {args.train_img_shape}")
+        
     return args
 
 def add_additional_params_to_args(args):
@@ -19,14 +36,14 @@ def add_additional_params_to_args(args):
     
     # print(dataset)
     
-    args.n_class = get_n_class(dataset)
+    args.n_class, args.label_background = get_n_class(dataset)
     # print(args.n_class)
     # args.machine = os.uname()[1]
 
     return args
 
 
-def get_common_training_parser(parser):
+def get_common_training_parser(parser:argparse.ArgumentParser=None):
     # ---------- How to Save ---------- #
     parser.add_argument('--savename', type=str, default="normal", help="save name(Do NOT use '-')")
     parser.add_argument('--base_outdir', type=str, default='train_output',
@@ -56,7 +73,7 @@ def get_common_training_parser(parser):
                         help='momentum sgd (default: 0.9)')
     parser.add_argument('--weight_decay', type=float, default=2e-5,
                         help='weight_decay (default: 2e-5)')
-    parser.add_argument('-b', '--batch_size', type=int, default=1,
+    parser.add_argument('-b', '--batch_size', type=int, default=16,
                         help="batch_size")
     parser.add_argument("--normalize_way", type=str, default="imagenet", choices=["imagenet", "None"],
                         help="normalize way")
@@ -82,7 +99,7 @@ def get_common_training_parser(parser):
     # ---------- Input Information Setting ---------- #
     parser.add_argument("--input_ch", type=int, default=3,
                         choices=[1, 3, 4])
-    parser.add_argument('--train_img_shape', default=(1024, 512), nargs=2, metavar=("W", "H"),
+    parser.add_argument('--train_img_shape', default=(120, 120), nargs=2, metavar=("W", "H"),
                         help="W H")
     parser.add_argument("--background_id", type=int, default=255,
                         help="background id")
@@ -96,7 +113,7 @@ def get_src_only_training_parser(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser(description='PyTorch Segmentation Adaptation')
 
-    parser.add_argument('src_dataset', type=str, choices=["gta", "city", "city16", "synthia"])
+    parser.add_argument('src_dataset', type=str, choices=DATASET_LIST)
     parser.add_argument('--split', type=str, default='train',
                         help="which split('train' or 'trainval' or 'val' or something else) is used ")
     return get_common_training_parser(parser)
@@ -106,13 +123,19 @@ def get_da_base_training_parser(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser(description='PyTorch Segmentation Adaptation')
 
-    parser.add_argument('src_dataset', type=str, choices=["gta", "city", "city16", "synthia"])
-    parser.add_argument('tgt_dataset', type=str, choices=["gta", "city", "city16", "synthia"])
+    parser.add_argument('src_dataset', type=str, choices=DATASET_LIST)
+    parser.add_argument('tgt_dataset', type=str, choices=DATASET_LIST)
     parser.add_argument('--src_split', type=str, default='train',
                         help="which split('train' or 'trainval' or 'val' or something else) is used ")
     parser.add_argument('--tgt_split', type=str, default='train',
                         help="which split('train' or 'trainval' or 'val' or something else) is used ")
-
+    parser.add_argument('--id_crossval', type=int, default=0,
+                        help="cross validation split id")
+    parser.add_argument('--patience', type=int, default=30,
+                        help="early stopping patience")
+    # alpha_iou
+    parser.add_argument('--alpha_iou', type=float, default=0.5,
+                        help='alpha value for iou when calculating general metric')
     return get_common_training_parser(parser)
 
 

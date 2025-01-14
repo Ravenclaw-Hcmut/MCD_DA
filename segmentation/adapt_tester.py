@@ -13,17 +13,17 @@ from tqdm import tqdm
 
 from argmyparse import add_additional_params_to_args
 from argmyparse import fix_img_shape_args
-from datasets_segment import get_dataset
+from datasets_segment import get_dataset, DATASET_LIST
 from models.model_util import get_models
 from transform import Scale
 from util import mkdir_if_not_exist, save_dic_to_json, check_if_done
 
 parser = argparse.ArgumentParser(description='Adapt tester for validation data')
-parser.add_argument('tgt_dataset', type=str, choices=["gta", "city", "test", "ir", "city16"])
+parser.add_argument('tgt_dataset', type=str, choices=["test"] + DATASET_LIST)
 parser.add_argument('trained_checkpoint', type=str, metavar="PTH.TAR")
 parser.add_argument('--outdir', type=str, default="test_output",
                     help='output directory')
-parser.add_argument('--test_img_shape', default=(2048, 1024), nargs=2,
+parser.add_argument('--test_img_shape', default=(300, 300), nargs=2,
                     help="W H, FOR Valid(2048, 1024) Test(1280, 720)")
 parser.add_argument('--net', type=str, default="fcn",
                     help="choose from ['fcn','fcnvgg', 'psp', 'segnet','drn_d_105']")
@@ -34,7 +34,7 @@ parser.add_argument("--input_ch", type=int, default=3,
 parser.add_argument('--uses_one_classifier', action="store_true",
                     help="separate f1, f2")
 parser.add_argument('--split', type=str, default='val', help="'val' or 'test')  is used")
-parser.add_argument("--add_bg_loss", action="store_true",
+parser.add_argument("--add_bg_loss", action="store_true", default=True,
                     help='whether you add background loss or not')
 parser.add_argument("--saves_prob", action="store_true",
                     help='whether you save probability tensors')
@@ -50,7 +50,10 @@ args = fix_img_shape_args(args)
 
 indir, infn = os.path.split(args.trained_checkpoint)
 
-trained_mode = indir.split(os.path.sep)[-2]
+print (f"indir: {indir}")
+print (f"infn: {infn}")
+
+trained_mode = indir.split('/')[-2]
 args.mode = "%s---%s-%s" % (trained_mode, args.tgt_dataset, args.split)
 
 model_name = infn.replace(".pth", "")
@@ -75,7 +78,7 @@ mkdir_if_not_exist(base_outdir)
 
 json_fn = os.path.join(base_outdir, "param.json")
 check_if_done(json_fn)
-args.machine = os.uname()[1]
+# args.machine = os.uname()[1]
 save_dic_to_json(args.__dict__, json_fn)
 
 train_img_shape = tuple([int(x) for x in train_args.train_img_shape])
@@ -92,6 +95,9 @@ label_transform = Compose([Scale(train_img_shape, Image.BILINEAR), ToTensor()])
 tgt_dataset = get_dataset(dataset_name=args.tgt_dataset, split=args.split, img_transform=img_transform,
                           label_transform=label_transform, test=True, input_ch=train_args.input_ch)
 target_loader = data.DataLoader(tgt_dataset, batch_size=1, pin_memory=True)
+
+print(tgt_dataset.files)
+# exit()
 
 try:
     G, F1, F2 = get_models(net_name=train_args.net, res=train_args.res, input_ch=train_args.input_ch,
@@ -119,6 +125,22 @@ if torch.cuda.is_available():
     F1.cuda()
     F2.cuda()
 
+# from segmentation.eval_segmentation import infer_image
+# res, lbls = infer_image(G, F1, F2, target_loader)
+
+# print (res)
+# print (len(res))
+# print(type(res))
+# print(type(res[0]))
+# print (res[0].shape)
+
+# print (lbls)
+# print (len(lbls))
+# print(type(lbls))
+# print(type(lbls[0]))
+
+# exit()
+
 for index, (imgs, _, paths) in tqdm(enumerate(target_loader)):
     path = paths[0]
 
@@ -140,7 +162,21 @@ for index, (imgs, _, paths) in tqdm(enumerate(target_loader)):
         np.save(prob_outfn, outputs[0].data.cpu().numpy())
 
     # Save predicted pixel labels(pngs)
+    print(outputs.size())
+    print(outputs[0, :args.n_class].size())
+    
+    print(type(outputs))
+    # print(outputs)
+    
+    pred = outputs[0, :args.n_class].detach().max(0)
+    # print(pred.size())
+    print(type(pred))
+    print(pred)
+    
+    break
+    
     if args.add_bg_loss:
+        print("add bg loss")
         pred = outputs[0, :args.n_class].data.max(0)[1].cpu()
     else:
         pred = outputs[0, :args.n_class - 1].data.max(0)[1].cpu()
@@ -151,8 +187,12 @@ for index, (imgs, _, paths) in tqdm(enumerate(target_loader)):
     if index == 0:
         print ("pred label dir: %s" % label_outdir)
     mkdir_if_not_exist(label_outdir)
-    label_fn = os.path.join(label_outdir, path.split('/')[-1])
+    
+    label_fn = os.path.join(label_outdir, os.path.basename(path))
+    print(path)
+    
     img.save(label_fn)
+    # exit()
 
     if args.tgt_dataset in ["city16", "synthia"]:
         info_json_fn = "./dataset/synthia2cityscapes_info.json"
@@ -167,5 +207,5 @@ for index, (imgs, _, paths) in tqdm(enumerate(target_loader)):
     img.putpalette(palette.flatten())
     vis_outdir = os.path.join(base_outdir, "vis")
     mkdir_if_not_exist(vis_outdir)
-    vis_fn = os.path.join(vis_outdir, path.split('/')[-1])
+    vis_fn = os.path.join(vis_outdir, os.path.basename(path))
     img.save(vis_fn)

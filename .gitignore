@@ -108,3 +108,8 @@ ENV/
 *.ipynb
 train_output*
 .codegpt
+dataset_augmented
+cheatsheet.sh
+segmentation/logs
+*test_output
+tmp

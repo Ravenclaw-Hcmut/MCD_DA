@@ -18,7 +18,7 @@ def get_full_model(net, res, n_class, input_ch):
 
 
 def get_models(net_name, input_ch, n_class, res="50", method="MCD", uses_one_classifier=False, use_ae=False,
-               is_data_parallel=False):
+               is_data_parallel=False) -> tuple[torch.nn.Module, torch.nn.Module, torch.nn.Module]:
     def get_MCD_model_list():
         if net_name == "fcn":
             from models.fcn import ResBase, ResClassifier

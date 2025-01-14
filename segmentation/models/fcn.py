@@ -13,7 +13,7 @@ class Upsample(nn.Module):
         self.bn = nn.BatchNorm2d(planes)
 
     def forward(self, x, size):
-        x = F.upsample(x, size=size, mode="bilinear")
+        x = F.interpolate(x, size=size, mode="bilinear")
         x = self.conv1(x)
         x = self.bn(x)
         return x
@@ -575,10 +575,10 @@ class ResBaseUP(nn.Module):
 
         self.num_classes = num_classes
         if layer == '50':
-            print 'resnet' + layer
+            print ('resnet' + layer)
             resnet = extended_resnet.resnet50(pretrained=True)
         if layer == '101':
-            print 'resnet' + layer
+            print ('resnet' + layer)
             resnet = extended_resnet.resnet101(pretrained=True)
 
         self.conv1 = resnet.conv1
