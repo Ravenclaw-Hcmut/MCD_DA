@@ -19,6 +19,8 @@ from util import mkdir_if_not_exist, save_dic_to_json, check_if_done, save_check
     get_class_weight_from_file, setup_logging, Log_CSV
 from eval_segmentation import infer_image, get_metric, get_general_metric
 
+import numpy as np
+
 parser = get_da_mcd_training_parser()
 args = parser.parse_args()
 args = add_additional_params_to_args(args)
@@ -37,7 +39,7 @@ args.start_epoch = 0
 resume_flg = True if args.resume else False
 start_epoch = 0
 if args.resume:
-    print("=> loading checkpoint '{}'".format(args.resume))
+    # print("=> loading checkpoint '{}'".format(args.resume))
     logging.info("=> loading checkpoint '{}'".format(args.resume))
     if not os.path.exists(args.resume):
         raise OSError("%s does not exist!" % args.resume)
@@ -46,7 +48,7 @@ if args.resume:
 
     old_savename = args.savename
     args.savename = infn.split("-")[0]
-    print ("savename is %s (original savename %s was overwritten)" % (args.savename, old_savename))
+    # print ("savename is %s (original savename %s was overwritten)" % (args.savename, old_savename))
     logging.info("savename is %s (original savename %s was overwritten)" % (args.savename, old_savename))
 
     checkpoint = torch.load(args.resume)
@@ -68,7 +70,7 @@ if args.resume:
         model_f2.load_state_dict(checkpoint['f2_state_dict'])
     optimizer_g.load_state_dict(checkpoint['optimizer_g'])
     optimizer_f.load_state_dict(checkpoint['optimizer_f'])
-    print("=> loaded checkpoint '{}'".format(args.resume))
+    # print("=> loaded checkpoint '{}'".format(args.resume))
     logging.info("=> loaded checkpoint '{}'".format(args.resume))
 
 else:
@@ -81,7 +83,7 @@ else:
     optimizer_f = get_optimizer(list(model_f1.parameters()) + list(model_f2.parameters()), opt=args.opt,
                                 lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 if args.uses_one_classifier:
-    print ("uses_one_classifier, f1 and f2 are same!")
+    # print ("uses_one_classifier, f1 and f2 are same!")
     logging.info("uses_one_classifier, f1 and f2 are same!")
     model_f2 = model_f1
 
@@ -131,7 +133,7 @@ try:
         ]
         img_transform_list = aug_list + img_transform_list
 except AttributeError:
-    print("augment is not defined. Do nothing.")
+    # print("augment is not defined. Do nothing.")
     logging.info("augment is not defined. Do nothing.")
 
 img_transform = Compose(img_transform_list)
@@ -148,6 +150,9 @@ src_dataset = get_dataset(dataset_name=args.src_dataset, split=DatasetSplit.TRAI
 tgt_dataset = get_dataset(dataset_name=args.tgt_dataset, split=DatasetSplit.TRAIN.value, img_transform=img_transform,
                           label_transform=label_transform, test=False, input_ch=args.input_ch, id_crossval=args.id_crossval)
 
+src_val_dataset = get_dataset(dataset_name=args.src_dataset, split=DatasetSplit.VAL.value, img_transform=img_transform,
+                              label_transform=label_transform, test=True, input_ch=args.input_ch, id_crossval=args.id_crossval)
+
 tgt_val_dataset = get_dataset(dataset_name=args.tgt_dataset, split=DatasetSplit.VAL.value, img_transform=img_transform,
                                label_transform=label_transform, test=True, input_ch=args.input_ch, id_crossval=args.id_crossval)
 
@@ -163,7 +168,12 @@ train_loader = torch.utils.data.DataLoader(
     batch_size=args.batch_size, shuffle=True,
     pin_memory=True)
 
-val_loader = torch.utils.data.DataLoader(
+src_val_loader = torch.utils.data.DataLoader(
+    src_val_dataset,
+    batch_size=args.batch_size, shuffle=False,
+    pin_memory=True)
+
+tgt_val_loader = torch.utils.data.DataLoader(
     tgt_val_dataset,
     batch_size=args.batch_size, shuffle=False,
     pin_memory=True)
@@ -202,7 +212,7 @@ model_g.train()
 model_f1.train()
 model_f2.train()
 
-print('Epoch\tLoss_C\tLoss_D\tVal_IoU\tVal_Dice\tVal_IoU_Dice\tBest_Val_IoU_Dice\tBest_Epoch\tLR')
+# print('Epoch\tLoss_C\tLoss_D\tVal_IoU\tVal_Dice\tVal_IoU_Dice\tBest_Val_IoU_Dice\tBest_Epoch\tLR')
 
 for epoch in range(start_epoch, args.epochs):
     d_loss_per_epoch = 0
@@ -269,21 +279,30 @@ for epoch in range(start_epoch, args.epochs):
         #     break
 
     with torch.no_grad():
-        preds, lbls = infer_image(model_g, model_f1, model_f2, val_loader)
-        mean_iou, mean_dice = get_metric(preds, lbls, args.n_class)
-        metric_general = get_general_metric(mean_iou, mean_dice, alpha_iou)
+        _preds_val_src, _lbls_val_src = infer_image(model_g, model_f1, model_f2, src_val_loader)
+        _preds_val_tgt, _lbls_val_tgt = infer_image(model_g, model_f1, model_f2, tgt_val_loader)
+        ious_val_src, dices_val_src = get_metric(_preds_val_src, _lbls_val_src, args.n_class)
+        ious_val_tgt, dices_val_tgt = get_metric(_preds_val_tgt, _lbls_val_tgt, args.n_class)
         
-        if metric_general >= best_metric:
-            best_metric, best_metric_epoch = metric_general, epoch
+        mean_iou_src, mean_dice_src = np.mean(ious_val_src), np.mean(dices_val_src)
+        mean_iou_tgt, mean_dice_tgt = np.mean(ious_val_tgt), np.mean(dices_val_tgt)
+        
+        metric_general_tgt = get_general_metric(ious_val_tgt, dices_val_tgt, alpha_iou)
+        metric_general_src = get_general_metric(ious_val_src, dices_val_src, alpha_iou)
+        
+        if metric_general_tgt >= best_metric:
+            best_metric, best_metric_epoch = metric_general_tgt, epoch
         
         if epoch - best_metric_epoch > patience:
-            print(f"Early Stopping at Epoch {epoch}, Best Metric: {best_metric}, Best Metric Epoch: {best_metric_epoch}")
+            # print(f"Early Stopping at Epoch {epoch}, Best Metric: {best_metric}, Best Metric Epoch: {best_metric_epoch}")
             logging.info(f"Early Stopping at Epoch {epoch}, Best Metric: {best_metric}, Best Metric Epoch: {best_metric_epoch}")
             break
         
-    log_csv.update(epoch, c_loss_per_epoch, d_loss_per_epoch, mean_iou, mean_dice, metric_general, best_metric, best_metric_epoch)
-    print(f'{epoch}\t{c_loss_per_epoch}\t{d_loss_per_epoch}\t{mean_iou}\t{mean_dice}\t\t{metric_general}\t\t{best_metric}\t\t\t{best_metric_epoch}\t{args.lr}')
-    logging.info(f"Epoch {epoch} Loss_C: {c_loss_per_epoch} Loss_D: {d_loss_per_epoch} Val_IoU: {mean_iou} Val_Dice: {mean_dice} Val_IoU_Dice: {metric_general} Best_Val_IoU_Dice: {best_metric} Best_Epoch: {best_metric_epoch} Lr: {args.lr}")
+    log_csv.update(epoch, c_loss_per_epoch, d_loss_per_epoch, ious_val_src, dices_val_src, ious_val_tgt, dices_val_tgt, 
+                   mean_iou_src, mean_dice_src, metric_general_src, mean_iou_tgt, mean_dice_tgt, metric_general_tgt, best_metric, best_metric_epoch)
+    
+    # print(f'{epoch}\t{c_loss_per_epoch}\t{d_loss_per_epoch}\t{ious_val_tgt}\t{dices_val_tgt}\t\t{metric_general_tgt}\t\t{best_metric}\t\t\t{best_metric_epoch}\t{args.lr}')
+    logging.info(f"Epoch {epoch} Loss_C: {c_loss_per_epoch} Loss_D: {d_loss_per_epoch} Val_IoU_src: {ious_val_src} Val_Dice_src: {dices_val_src} Val_IoU_Dice_src {metric_general_src} Val_IoU_tgt: {ious_val_tgt} Val_Dice_tgt: {dices_val_tgt} Val_IoU_Dice_tgt: {metric_general_tgt} Best_Val_IoU_Dice: {best_metric} Best_Epoch: {best_metric_epoch} Lr: {args.lr}")
     # print("Epoch [%d] DLoss: %.4f CLoss: %.4f" % (epoch, d_loss_per_epoch, c_loss_per_epoch))
 
     log_value('c_loss', c_loss_per_epoch, epoch)

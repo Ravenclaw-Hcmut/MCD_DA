@@ -3,26 +3,24 @@ import torch
 from tqdm import tqdm
 
 
-def infer_image(model_g, model_f1, model_f2, target_loader):
+def infer_image(model_g, model_f1, model_f2, data_loader):
     """
     Perform inference on a set of images using the provided models.
     Args:
         model_g (torch.nn.Module): The feature extraction model.
         model_f1 (torch.nn.Module): The first classification model.
         model_f2 (torch.nn.Module): The second classification model.
-        target_loader (torch.utils.data.DataLoader): DataLoader for the target dataset.
+        data_loader (torch.utils.data.DataLoader): DataLoader for the target dataset.
     Returns:
-        list: A list of predicted labels for each image in the target_loader.
+        list: A list of predicted labels for each image in the data_loader.
     """
-    
-    
     model_g.eval()
     model_f1.eval()
     model_f2.eval()
 
     results = []
     lbls = []
-    for batch in enumerate(target_loader):
+    for batch in enumerate(data_loader):
         index, (imgs, lbl_batch, paths) = batch
         if torch.cuda.is_available():
             imgs = imgs.cuda()

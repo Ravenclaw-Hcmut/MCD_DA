@@ -7,6 +7,7 @@ import sys
 import logging
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 LOG_DIR = 'logs'
 
@@ -143,22 +144,42 @@ class Log_CSV:
         self.filename = filename if filename else f'log_{mode}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         self.filename = os.path.join(LOG_DIR, self.filename)
         self.df = pd.DataFrame()
-        self.columns = ['epoch', 'GPU_mem', 'c_loss', 'd_loss', 'val_IoU', 'val_Dice', 'val_Iou_Dice', 'best_val_Iou_Dice', 'best_epoch']
+        self.set_class = ['background', 'boundary', 'wbc']
+        name_IoU_src = [f'IoU_{c}_src' for c in self.set_class]
+        name_Dice_src = [f'Dice_{c}_src' for c in self.set_class]
+        name_IoU_tgt = [f'IoU_{c}_tgt' for c in self.set_class]
+        name_Dice_tgt = [f'Dice_{c}_tgt' for c in self.set_class]
+        self.columns = ['epoch', 'GPU_mem', 'c_loss', 'd_loss'] + name_IoU_src + name_Dice_src + name_IoU_tgt + name_Dice_tgt + ['IoU_src', 'Dice_src', 'val_Iou_Dice_src', 'IoU_tgt', 'Dice_tgt', 'val_Iou_Dice_tgt', 'best_val_Iou_Dice_tgt', 'best_epoch']
         self.df = pd.DataFrame(columns=self.columns)
 
-    def append(self, epoch, c_loss, d_loss, val_IoU, val_Dice, val_Iou_Dice, best_val_Iou_Dice, best_epoch):
+    def append(self, epoch, c_loss, d_loss, arr_IoU_src, arr_Dice_src, arr_IoU_tgt, arr_Dice_tgt, 
+               IoU_src, Dice_src, val_Iou_Dice_src, IoU_tgt, Dice_tgt, val_Iou_Dice_tgt, best_val_Iou_Dice, best_epoch):
+        arr_IoU_src = arr_IoU_src.tolist()
+        arr_Dice_src = arr_Dice_src.tolist()
+        arr_IoU_tgt = arr_IoU_tgt.tolist()
+        arr_Dice_tgt = arr_Dice_tgt.tolist()
+        col_loss = {'epoch': epoch, 'GPU_mem': mem_GPU, 'c_loss': c_loss, 'd_loss': d_loss}
+        col_IoU_src = {f'IoU_{c}_src': iou for c, iou in zip(self.set_class, arr_IoU_src)}
+        col_Dice_src = {f'Dice_{c}_src': dice for c, dice in zip(self.set_class, arr_Dice_src)}
+        col_IoU_tgt = {f'IoU_{c}_tgt': iou for c, iou in zip(self.set_class, arr_IoU_tgt)}
+        col_Dice_tgt = {f'Dice_{c}_tgt': dice for c, dice in zip(self.set_class, arr_Dice_tgt)}
+        col_IoU_Dice_src = {'IoU_src': IoU_src, 'Dice_src': Dice_src, 'val_Iou_Dice_src': val_Iou_Dice_src}
+        col_IoU_Dice_tgt = {'IoU_tgt': IoU_tgt, 'Dice_tgt': Dice_tgt, 'val_Iou_Dice_tgt': val_Iou_Dice_tgt, 'best_val_Iou_Dice_tgt': best_val_Iou_Dice, 'best_epoch': best_epoch}
+
         mem_GPU = 0
         if torch.cuda.is_available():
             device = torch.device("cuda")
             mem_GPU = torch.cuda.memory_allocated(device) / 1024 ** 2
-        new_row = {'epoch': epoch, 'GPU_mem': mem_GPU, 'c_loss': c_loss, 'd_loss': d_loss, 'val_IoU': val_IoU, 'val_Dice': val_Dice, 'val_Iou_Dice': val_Iou_Dice, 'best_val_Iou_Dice': best_val_Iou_Dice, 'best_epoch': best_epoch}
+        new_row = col_loss | col_IoU_src | col_Dice_src | col_IoU_tgt | col_Dice_tgt | col_IoU_Dice_src | col_IoU_Dice_tgt
         new_row_df = pd.DataFrame([new_row])  # Convert the new row to a DataFrame
         self.df = pd.concat([self.df, new_row_df], ignore_index=True)  # Add the new row to the DataFrame and reset the index
         
     def save(self):
         self.df.to_csv(self.filename, index=False)
-
-    def update(self, epoch, c_loss, d_loss, val_IoU, val_Dice, val_Iou_Dice, best_val_Iou_Dice, best_epoch):
-        self.append(epoch, c_loss, d_loss, val_IoU, val_Dice, val_Iou_Dice, best_val_Iou_Dice, best_epoch)
+    
+    def update (self, epoch, c_loss, d_loss, arr_IoU_src, arr_Dice_src, arr_IoU_tgt, arr_Dice_tgt, 
+               IoU_src, Dice_src, val_Iou_Dice_src, IoU_tgt, Dice_tgt, val_Iou_Dice_tgt, best_val_Iou_Dice, best_epoch):
+        self.append(self, epoch, c_loss, d_loss, arr_IoU_src, arr_Dice_src, arr_IoU_tgt, arr_Dice_tgt, 
+                    IoU_src, Dice_src, val_Iou_Dice_src, IoU_tgt, Dice_tgt, val_Iou_Dice_tgt, best_val_Iou_Dice, best_epoch)
         self.save()
     
