@@ -158,7 +158,6 @@ class Log_CSV:
         if torch.cuda.is_available():
             device = torch.device("cuda")
             mem_GPU = torch.cuda.memory_allocated(device) / 1024 ** 2
-        new_row = col_loss | col_IoU_src | col_Dice_src | col_IoU_tgt | col_Dice_tgt | col_IoU_Dice_src | col_IoU_Dice_tgt
         
         arr_IoU_src = arr_IoU_src.tolist()
         arr_Dice_src = arr_Dice_src.tolist()
@@ -172,6 +171,7 @@ class Log_CSV:
         col_IoU_Dice_src = {'IoU_src': IoU_src, 'Dice_src': Dice_src, 'val_Iou_Dice_src': val_Iou_Dice_src}
         col_IoU_Dice_tgt = {'IoU_tgt': IoU_tgt, 'Dice_tgt': Dice_tgt, 'val_Iou_Dice_tgt': val_Iou_Dice_tgt, 'best_val_Iou_Dice_tgt': best_val_Iou_Dice, 'best_epoch': best_epoch}
 
+        new_row = col_loss | col_IoU_src | col_Dice_src | col_IoU_tgt | col_Dice_tgt | col_IoU_Dice_src | col_IoU_Dice_tgt
         new_row_df = pd.DataFrame([new_row])  # Convert the new row to a DataFrame
         self.df = pd.concat([self.df, new_row_df], ignore_index=True)  # Add the new row to the DataFrame and reset the index
         
