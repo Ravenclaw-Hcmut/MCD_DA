@@ -179,7 +179,7 @@ class Log_CSV:
     
     def update (self, epoch, c_loss, d_loss, arr_IoU_src, arr_Dice_src, arr_IoU_tgt, arr_Dice_tgt, 
                IoU_src, Dice_src, val_Iou_Dice_src, IoU_tgt, Dice_tgt, val_Iou_Dice_tgt, best_val_Iou_Dice, best_epoch):
-        self.append(self, epoch, c_loss, d_loss, arr_IoU_src, arr_Dice_src, arr_IoU_tgt, arr_Dice_tgt, 
+        self.append(epoch, c_loss, d_loss, arr_IoU_src, arr_Dice_src, arr_IoU_tgt, arr_Dice_tgt, 
                     IoU_src, Dice_src, val_Iou_Dice_src, IoU_tgt, Dice_tgt, val_Iou_Dice_tgt, best_val_Iou_Dice, best_epoch)
         self.save()
     
