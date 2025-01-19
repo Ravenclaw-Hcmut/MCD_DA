@@ -89,9 +89,9 @@ def get_common_training_parser(parser:argparse.ArgumentParser=None):
     
     parser.add_argument('--loss_weights_file', type=str, default=None,
                         help='Use this when you control the loss per class')
-    parser.add_argument("--add_bg_loss", action="store_true",
+    parser.add_argument("--add_bg_loss", action="store_true", default=True,
                         help='whether you add background loss or not')
-    parser.add_argument("--fix_bn", action="store_true", default=True,
+    parser.add_argument("--fix_bn", action="store_true",
                         help='whether you fix the paramters of batch normalization layer')
     parser.add_argument("--no_dropout", action="store_true",
                         help='whether you use dropout')
