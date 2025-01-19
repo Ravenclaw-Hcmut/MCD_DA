@@ -21,6 +21,8 @@ from eval_segmentation import infer_image, get_metric, get_general_metric
 
 import numpy as np
 
+torch.manual_seed(42)
+
 parser = get_da_mcd_training_parser()
 args = parser.parse_args()
 args = add_additional_params_to_args(args)
@@ -208,13 +210,13 @@ best_metric = 0
 best_metric_epoch = 0
 alpha_iou = args.alpha_iou
 
-model_g.train()
-model_f1.train()
-model_f2.train()
-
 # print('Epoch\tLoss_C\tLoss_D\tVal_IoU\tVal_Dice\tVal_IoU_Dice\tBest_Val_IoU_Dice\tBest_Epoch\tLR')
 
 for epoch in range(start_epoch, args.epochs):
+    model_g.train()
+    model_f1.train()
+    model_f2.train()
+
     d_loss_per_epoch = 0
     c_loss_per_epoch = 0
 
@@ -229,7 +231,7 @@ for epoch in range(start_epoch, args.epochs):
         optimizer_g.zero_grad()
         optimizer_f.zero_grad()
         loss = 0
-        loss_weight = [1.0, 1.0]
+        # loss_weight = [1.0, 1.0]
         outputs = model_g(src_imgs)
 
         outputs1 = model_f1(outputs)
