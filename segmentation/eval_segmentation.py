@@ -35,9 +35,8 @@ def infer_image(model_g, model_f1, model_f2, data_loader):
         preds = torch.argmax(outputs, dim=1).cpu().numpy()
         lbl_batch = lbl_batch.numpy()
 
-        lbls.append(lbl_batch)
-        for pred in preds:
-            results.append(pred)
+        [lbls.append(lbl) for lbl in lbl_batch]
+        [results.append(pred) for pred in preds]
 
     return results, lbls
 
@@ -68,6 +67,7 @@ def get_metric(preds:list[np.ndarray], targets:list[np.ndarray], n_class:int):
 
             if union == 0:
                 iou = float('nan')
+                raise ValueError("Union is 0")
             else:
                 iou = intersection / union
 
