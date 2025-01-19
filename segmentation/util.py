@@ -98,7 +98,7 @@ def adjust_learning_rate(optimizer, lr_init, decay_rate, epoch, num_epochs, deca
     return lr
 
 
-def get_class_weight_from_file(n_class, weight_filename=None, add_bg_loss=False):
+def get_class_weight_from_file(n_class, weight_filename=None, add_bg_loss=True):
     weight = torch.ones(n_class)
     if weight_filename:
         import pandas as pd

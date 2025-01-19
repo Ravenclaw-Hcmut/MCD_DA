@@ -182,19 +182,24 @@ tgt_val_loader = torch.utils.data.DataLoader(
 
 def get_unique_labels(dataset):
     """Extract unique labels from dataset"""
-    all_labels = []
+    # all_labels = []
+    unique_labels = set()
     logging.info(f"len(dataset): {len(dataset)}")
     for source, target in dataset:
         unique_values = torch.unique(source[1])
-        all_labels.append(unique_values.tolist())
+        unique_labels.update(unique_values.tolist())
+        # all_labels.append(unique_values.tolist())
+    all_labels = sorted(list(unique_labels))
     return all_labels
-    # return sorted(list(set(all_labels)))
 
 train_labels = get_unique_labels(train_loader.dataset)
 logging.info(f"Unique labels in dataset: {train_labels}")
 
 weight_loss = get_class_weight_from_file(n_class=args.n_class, weight_filename=args.loss_weights_file,
                                     add_bg_loss=args.add_bg_loss)
+
+print ('weight_loss:', weight_loss)
+exit()
 
 if torch.cuda.is_available():
     model_g.cuda()
