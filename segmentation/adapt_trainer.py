@@ -198,7 +198,7 @@ logging.info(f"Unique labels in dataset: {train_labels}")
 weight_loss = get_class_weight_from_file(n_class=args.n_class, weight_filename=args.loss_weights_file,
                                     add_bg_loss=args.add_bg_loss)
 
-logging.info ('weight_loss:', weight_loss)
+logging.info (f'weight_loss: {weight_loss}')
 
 if torch.cuda.is_available():
     model_g.cuda()
