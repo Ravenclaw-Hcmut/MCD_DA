@@ -20,6 +20,9 @@ from util import mkdir_if_not_exist, save_dic_to_json, check_if_done, save_check
 from eval_segmentation import infer_image, get_metric, get_general_metric
 
 import numpy as np
+from datetime import datetime
+
+current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 torch.manual_seed(42)
 
@@ -37,9 +40,9 @@ weight_loss = torch.ones(args.n_class)
 if not args.add_bg_loss:
     weight_loss[args.label_background] = 0  # Ignore background loss
 
-args.start_epoch = 0
+args.start_epoch = 1
 resume_flg = True if args.resume else False
-start_epoch = 0
+start_epoch = 1
 if args.resume:
     # print("=> loading checkpoint '{}'".format(args.resume))
     logging.info("=> loading checkpoint '{}'".format(args.resume))
@@ -90,7 +93,7 @@ if args.uses_one_classifier:
     model_f2 = model_f1
 
 # mode = "%s-%s2%s-%s_%sch" % (args.src_dataset, args.src_split, args.tgt_dataset, args.tgt_split, args.input_ch)
-mode = f"train-{args.src_dataset}_to_{args.tgt_dataset}-fold{args.id_crossval}-{args.input_ch}ch"
+mode = f"train-{args.src_dataset}_to_{args.tgt_dataset}-fold{args.id_crossval}-{args.input_ch}ch-{current_time}"
 log_csv = Log_CSV(mode=mode)
 logging.info("mode: %s" % mode)
 
@@ -319,10 +322,10 @@ for epoch in range(start_epoch, args.epochs):
         args.lr = adjust_learning_rate(optimizer_g, args.lr, args.weight_decay, epoch, args.epochs)
         args.lr = adjust_learning_rate(optimizer_f, args.lr, args.weight_decay, epoch, args.epochs)
 
-    checkpoint_fn = os.path.join(pth_dir, "%s-%s.pth.tar" % (model_name, epoch + 1))
-    args.start_epoch = epoch + 1
+    checkpoint_fn = os.path.join(pth_dir, f"{model_name}-{current_time}-{epoch}.pth.tar")
+    args.start_epoch = epoch
     save_dic = {
-        'epoch': epoch + 1,
+        'epoch': epoch,
         'args': args,
         'g_state_dict': model_g.state_dict(),
         'f1_state_dict': model_f1.state_dict(),
