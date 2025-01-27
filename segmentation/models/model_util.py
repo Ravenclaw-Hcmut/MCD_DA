@@ -25,6 +25,11 @@ def get_models(net_name, input_ch, n_class, res="50", method="MCD", uses_one_cla
             model_g = ResBase(n_class, layer=res, input_ch=input_ch)
             model_f1 = ResClassifier(n_class)
             model_f2 = ResClassifier(n_class)
+        if net_name == "convnextv2_small":
+            from models.convnext import ConvNeXtV2FeatureExtractor, ConvNeXtV2Decoder
+            model_g = ConvNeXtV2FeatureExtractor()
+            model_f1 = ConvNeXtV2Decoder(n_class=n_class)
+            model_f2 = ConvNeXtV2Decoder(n_class=n_class)
         elif net_name == "fcnvgg":
             from models.vgg_fcn import FCN8sBase, FCN8sClassifier
             model_g = FCN8sBase(n_class)

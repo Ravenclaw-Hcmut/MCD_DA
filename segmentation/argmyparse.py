@@ -6,6 +6,11 @@ from enum import Enum
 
 SHAPE_WBC_1 = [120, 120]
 SHAPE_WBC_2 = [300, 300]
+CHOICE_NET = [  'fcn', 'psp', 'segnet', 'fcnvgg',
+                "drn_c_26", "drn_c_42", "drn_c_58", "drn_d_22",
+                "drn_d_38", "drn_d_54", "drn_d_105",
+                "convnextv2_small"
+            ]
 
 class DatasetSplit(Enum):
     TRAIN = 'train'
@@ -54,9 +59,7 @@ def get_common_training_parser(parser:argparse.ArgumentParser=None):
 
     # ---------- Define Network ---------- #
     parser.add_argument('--net', type=str, default="drn_d_38", help="network structure",
-                        choices=['fcn', 'psp', 'segnet', 'fcnvgg',
-                                 "drn_c_26", "drn_c_42", "drn_c_58", "drn_d_22",
-                                 "drn_d_38", "drn_d_54", "drn_d_105"])
+                        choices=CHOICE_NET)
     parser.add_argument('--res', type=str, default='50', metavar="ResnetLayerNum",
                         choices=["18", "34", "50", "101", "152"], help='which resnet 18,50,101,152')
     parser.add_argument("--is_data_parallel", action="store_true",
