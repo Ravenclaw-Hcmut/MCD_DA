@@ -6,10 +6,12 @@ from enum import Enum
 
 SHAPE_WBC_1 = [120, 120]
 SHAPE_WBC_2 = [300, 300]
+SHAPE_SWINV2_TINY_IMG = [256, 256]
+SHAPE_SWINV2_TINY_LABEL = [128, 128]
 CHOICE_NET = [  'fcn', 'psp', 'segnet', 'fcnvgg',
                 "drn_c_26", "drn_c_42", "drn_c_58", "drn_d_22",
                 "drn_d_38", "drn_d_54", "drn_d_105",
-                "convnextv2_small"
+                "convnextv2_small", "swinv2_tiny"
             ]
 
 class DatasetSplit(Enum):
@@ -28,11 +30,13 @@ def fix_img_shape_args(args):
         print ("args.test_img_shape was changed to %s" % args.test_img_shape)
     
     if "src_dataset" in args.__dict__.keys() and "tgt_dataset" in args.__dict__.keys() and args.src_dataset == "wbc_1" and args.tgt_dataset == "wbc_2":
-        args.train_img_shape = SHAPE_WBC_1
+        args.train_img_shape = SHAPE_WBC_1 if args.net != "swinv2_tiny" else SHAPE_SWINV2_TINY_IMG
         print ("args.train_img_shape was changed to %s" % args.train_img_shape)
     
     if "train_img_shape" in args.__dict__.keys():
         print (f"args.train_img_shape is {args.train_img_shape}")
+        
+    args.train_label_shape = args.train_img_shape if args.net != "swinv2_tiny" else SHAPE_SWINV2_TINY_LABEL
         
     return args
 

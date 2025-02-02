@@ -122,6 +122,7 @@ check_if_done(json_fn)
 save_dic_to_json(args.__dict__, json_fn)
 
 train_img_shape = tuple([int(x) for x in args.train_img_shape])
+train_label_shape = tuple([int(x) for x in args.train_label_shape])
 img_transform_list = [
     Scale(train_img_shape, Image.BILINEAR),
     ToTensor(),
@@ -144,7 +145,7 @@ except AttributeError:
 img_transform = Compose(img_transform_list)
 
 label_transform = Compose([
-    Scale(train_img_shape, Image.NEAREST),
+    Scale(train_label_shape, Image.NEAREST),
     ToLabel(),
     ReLabel(0, args.label_background),  # Last Class is "Void" or "Background" class
 ])
@@ -219,7 +220,7 @@ alpha_iou = args.alpha_iou
 
 # print('Epoch\tLoss_C\tLoss_D\tVal_IoU\tVal_Dice\tVal_IoU_Dice\tBest_Val_IoU_Dice\tBest_Epoch\tLR')
 
-for epoch in range(start_epoch, args.epochs):
+for epoch in range(start_epoch, args.epochs+1):
     model_g.train()
     model_f1.train()
     model_f2.train()
@@ -283,8 +284,8 @@ for epoch in range(start_epoch, args.epochs):
 
         d_loss += loss.data / args.num_k
         d_loss_per_epoch += d_loss
-        if ind % 100 == 0:
-            print("iter [%d] DLoss: %.6f CLoss: %.4f" % (ind, d_loss, c_loss))
+        # if ind % 100 == 0:
+        #     print("iter [%d] DLoss: %.6f CLoss: %.4f" % (ind, d_loss, c_loss))
         # if ind > args.max_iter:
         #     break
 
@@ -323,17 +324,34 @@ for epoch in range(start_epoch, args.epochs):
         args.lr = adjust_learning_rate(optimizer_g, args.lr, args.weight_decay, epoch, args.epochs)
         args.lr = adjust_learning_rate(optimizer_f, args.lr, args.weight_decay, epoch, args.epochs)
 
-    checkpoint_fn = os.path.join(pth_dir, f"{model_name}-{current_time}-{epoch}.pth.tar")
-    args.start_epoch = epoch
-    save_dic = {
-        'epoch': epoch,
-        'args': args,
-        'g_state_dict': model_g.state_dict(),
-        'f1_state_dict': model_f1.state_dict(),
-        'optimizer_g': optimizer_g.state_dict(),
-        'optimizer_f': optimizer_f.state_dict(),
-    }
-    if not args.uses_one_classifier:
-        save_dic['f2_state_dict'] = model_f2.state_dict()
+    if epoch % 5 == 0 or best_metric_epoch == epoch:
+        checkpoint_fn = os.path.join(pth_dir, f"{model_name}-{current_time}-{epoch}.pth.tar")
+        args.start_epoch = epoch
+        save_dic = {
+            'epoch': epoch,
+            'args': args,
+            'g_state_dict': model_g.state_dict(),
+            'f1_state_dict': model_f1.state_dict(),
+            'optimizer_g': optimizer_g.state_dict(),
+            'optimizer_f': optimizer_f.state_dict(),
+        }
+        if not args.uses_one_classifier:
+            save_dic['f2_state_dict'] = model_f2.state_dict()
 
-    save_checkpoint(save_dic, is_best=False, filename=checkpoint_fn)
+        save_checkpoint(save_dic, is_best=False, filename=checkpoint_fn)
+        
+        checkpoints = sorted(
+            [(log_csv.df['epoch'][i], log_csv.df['val_Iou_Dice_tgt'][i]) for i in range(len(log_csv.df['epoch']))],
+            key=lambda x: x[1],
+            reverse=True
+        )
+        top_checkpoints = checkpoints[:5]
+        top_epochs = [epoch for epoch, _ in top_checkpoints]
+        print(top_epochs)
+
+        for filename in os.listdir(pth_dir):
+            if filename.endswith(".pth.tar"):
+                epoch_num = int(filename.split('-')[-1].split('.')[0])
+                if epoch_num not in top_epochs:
+                    os.remove(os.path.join(pth_dir, filename))
+                    logging.info(f"Removed {os.path.join(pth_dir, filename)}")

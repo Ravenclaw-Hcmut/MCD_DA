@@ -192,7 +192,8 @@ class ResBase(nn.Module):
         elif layer == '152':
             resnet = extended_resnet.resnet152(pretrained=True, input_ch=input_ch)
         else:
-            NotImplementedError
+            print('raise NotImplementedError')
+            raise NotImplementedError
 
         self.conv1 = resnet.conv1
         self.bn0 = resnet.bn1
