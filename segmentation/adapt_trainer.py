@@ -314,6 +314,7 @@ for epoch in range(start_epoch, args.epochs+1):
     
     # print(f'{epoch}\t{c_loss_per_epoch}\t{d_loss_per_epoch}\t{ious_val_tgt}\t{dices_val_tgt}\t\t{metric_general_tgt}\t\t{best_metric}\t\t\t{best_metric_epoch}\t{args.lr}')
     logging.info(f"Epoch {epoch} Loss_C: {c_loss_per_epoch} Loss_D: {d_loss_per_epoch} Val_IoU_src: {ious_val_src} Val_Dice_src: {dices_val_src} Val_IoU_Dice_src {metric_general_src} Val_IoU_tgt: {ious_val_tgt} Val_Dice_tgt: {dices_val_tgt} Val_IoU_Dice_tgt: {metric_general_tgt} Best_Val_IoU_Dice: {best_metric} Best_Epoch: {best_metric_epoch} Lr: {args.lr}")
+    print(f"Epoch {epoch} Loss_C: {c_loss_per_epoch} Loss_D: {d_loss_per_epoch} Val_IoU_src: {ious_val_src} Val_Dice_src: {dices_val_src} Val_IoU_Dice_src {metric_general_src} Val_IoU_tgt: {ious_val_tgt} Val_Dice_tgt: {dices_val_tgt} Val_IoU_Dice_tgt: {metric_general_tgt} Best_Val_IoU_Dice: {best_metric} Best_Epoch: {best_metric_epoch} Lr: {args.lr}")
     # print("Epoch [%d] DLoss: %.4f CLoss: %.4f" % (epoch, d_loss_per_epoch, c_loss_per_epoch))
 
     log_value('c_loss', c_loss_per_epoch, epoch)
