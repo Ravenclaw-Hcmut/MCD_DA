@@ -24,6 +24,63 @@ class SwinV2Decoder(nn.Module):
         self.n_class = out_channels
 
         self.up4 = self._upsample_block(768, 256)  # (8x8 → 16x16)
+        self.conv4 = nn.Conv2d(640, 256, kernel_size=1)  # (256 + 384 → 256)
+
+        self.up3 = self._upsample_block(256, 128)  # (16x16 → 32x32)
+        self.conv3 = nn.Conv2d(320, 128, kernel_size=1)  # (128 + 192 → 128)
+
+        self.up2 = self._upsample_block(128, 64)  # (32x32 → 64x64)
+        self.conv2 = nn.Conv2d(160, 64, kernel_size=1)  # (64 + 96 → 64)
+
+        self.up1 = self._upsample_block(64, 32)  # (64x64 → 128x128)
+        self.up_final = self._upsample_block(32, 16)  # (128x128 → 256x256)
+
+        self.classifier = self._classifier(16)
+
+    def _upsample_block(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+
+    def _classifier(self, inplanes):
+        return nn.Sequential(
+            nn.Conv2d(inplanes, inplanes // 2, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(inplanes // 2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inplanes // 2, self.n_class, kernel_size=1)
+        )
+
+    def forward(self, features):
+        fm1, fm2, fm3, fm4 = features['fm1'], features['fm2'], features['fm3'], features['fm4']
+        fm1, fm2, fm3, fm4 = [f.permute(0, 3, 1, 2) for f in [fm1, fm2, fm3, fm4]]
+
+        x = self.up4(fm4)  # (8x8 → 16x16)
+        x = torch.cat([x, fm3], dim=1)
+        x = self.conv4(x)
+
+        x = self.up3(x)  # (16x16 → 32x32)
+        x = torch.cat([x, fm2], dim=1)
+        x = self.conv3(x)
+
+        x = self.up2(x)  # (32x32 → 64x64)
+        x = torch.cat([x, fm1], dim=1)
+        x = self.conv2(x)
+
+        x = self.up1(x)  # (64x64 → 128x128)
+        x = self.up_final(x)  # (128x128 → 256x256)
+
+        output = self.classifier(x)
+        return output
+
+
+class SwinV2Decoder_out128(nn.Module):
+    def __init__(self, out_channels=3):
+        super(SwinV2Decoder_out128, self).__init__()
+        self.n_class = out_channels
+
+        self.up4 = self._upsample_block(768, 256)  # (8x8 → 16x16)
         self.conv4 = nn.Conv2d(640, 256, kernel_size=1)
 
         self.up3 = self._upsample_block(256, 128)  # (16x16 → 32x32)
