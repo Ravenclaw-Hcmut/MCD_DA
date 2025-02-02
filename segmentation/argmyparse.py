@@ -7,8 +7,8 @@ from enum import Enum
 SHAPE_WBC_1 = [120, 120]
 SHAPE_WBC_2 = [300, 300]
 SHAPE_SWINV2_TINY_IMG = [256, 256]
-SHAPE_SWINV2_TINY_LABEL = [256, 256]
-# SHAPE_SWINV2_TINY_LABEL = [128, 128]
+# SHAPE_SWINV2_TINY_LABEL = [256, 256]
+SHAPE_SWINV2_TINY_LABEL = [128, 128]
 CHOICE_NET = [  'fcn', 'psp', 'segnet', 'fcnvgg',
                 "drn_c_26", "drn_c_42", "drn_c_58", "drn_d_22",
                 "drn_d_38", "drn_d_54", "drn_d_105",
